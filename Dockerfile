@@ -1,26 +1,36 @@
-# Use Node.js 18 LTS
-FROM node:18-alpine
+# --- Build Stage ---
+FROM node:18-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including devDependencies like typescript)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the TypeScript project
 RUN npm run build
 
-# Expose the port
+# --- Production Stage ---
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production
+
+# Copy built artifacts from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Expose port
 EXPOSE 8000
 
-# Set environment to production
 ENV NODE_ENV=production
 
-# Start the HTTP server
-CMD ["npm", "start"] 
+CMD ["npm", "start"]
